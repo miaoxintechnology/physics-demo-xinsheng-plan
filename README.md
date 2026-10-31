@@ -227,15 +227,18 @@ node scripts/build-catalog.ts --strict # 有警告即以非零码退出
 
 ## AI 自动回复
 
-仓库配置了 [`.github/workflows/issue-ai-reply.yml`](.github/workflows/issue-ai-reply.yml)，用 AI 协助回答 Issue：
+仓库配置了 [`.github/workflows/issue-ai-reply.yml`](.github/workflows/issue-ai-reply.yml)，用 AI 回答 Issue：
 
 - 新建 Issue 时选任意一个模板即可，模板里已经带好触发标记，**不需要手动输入 `@infer`** 就会自动回复。
-- 评论里想再追问，写 `@infer 你的问题`；说清要改哪里，它还可以建分支、改文件并开 PR。
-- **只处理 Issue**：PR 评论不触发，也不会检出或执行任何 PR 分支上的代码。
+- 评论里想再追问，写 `@infer 你的问题`。
+- 每个问题都会单独发一条回复，历史回答全部保留，不会被后来的覆盖。
+- **只处理 Issue**：PR 评论不触发，也不会检出或执行任何 PR 分支上的代码；工作流只有 `contents: read`，不会改动仓库。
+- 同一 Issue 内的问题按顺序逐个回答，不会互相顶掉；不同 Issue 并行处理。
 - 不响应机器人自己的评论，避免循环触发。
-- 依赖仓库 Secret `DEEPSEEK_API_KEY`（维护者在 Settings → Secrets and variables → Actions 中配置）；没配时工作流会以明确的错误信息失败。
 
-> `infer-action` 判断「要不要回复」只看标题/正文里有没有 `@infer`。所以每个 Issue 模板末尾都有一个必填的「AI 触发标记」字段，预填 `@infer`；同时关闭了空白 Issue，保证从模板建的 Issue 都能自动回复。把那个字段改成别的内容，就只会通知维护者、不触发 AI。
+实现上，工作流把问题直接发到 DeepSeek 接口，把返回的答案作为评论发布——不走会「自己改代码」的 agent 循环，因此不会出现「无需进一步操作」这类空回答。依赖仓库 Secret `DEEPSEEK_API_KEY`（维护者在 Settings → Secrets and variables → Actions 中配置）；没配时工作流会以明确的错误信息失败。
+
+> 触发标记的由来：新 Issue 的自动回复只看正文里有没有 `@infer`。所以每个 Issue 模板末尾都有一个必填的「AI 触发标记」字段，预填 `@infer`；同时关闭了空白 Issue，保证从模板建的 Issue 都能自动回复。把那个字段删改掉，就只会通知维护者、不触发 AI。
 
 ---
 

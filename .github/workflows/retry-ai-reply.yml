@@ -1,6 +1,6 @@
 name: 自动重试失败的 AI 回复
 
-# 兜底：AI 回复工作流失败时（例如下载 gateway 时撞上共享 runner 的匿名限流 403），
+# 兜底：AI 回复工作流失败时（例如 DeepSeek 接口临时不可用、网络抖动），
 # 自动换一台 runner 把失败的 job 重跑一次。只重试一次，避免死循环。
 on:
   workflow_run:
