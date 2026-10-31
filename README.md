@@ -108,7 +108,7 @@
 项目采用**扁平收录 + 索引驱动**的方式，不强制统一代码结构：
 
 ```text
-open-physics-anim-collection/
+physics-demo-xinsheng-plan/
 ├─ junior_high/                     # 初中
 │  ├─ mechanics/                    # 力学
 │  │  ├─ lever_balance/
