@@ -28,3 +28,12 @@ body:
         能拖动磁铁、改变匝数；要标出「增反减同」的判定。
     validations:
       required: true
+
+  - type: input
+    id: ai_trigger
+    attributes:
+      label: AI 处理方式
+      description: 保留 @deepseek 直接回答问题；改成 @infer 会让 AI 改文件、建分支并开 PR。
+      value: "@deepseek"
+    validations:
+      required: true

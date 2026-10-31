@@ -22,12 +22,15 @@ jobs:
   answer:
     # 1. 不响应 Bot，防止循环
     # 2. 只处理 Issue，不碰 PR
-    # 3. 新 Issue 直接答；评论必须是 @deepseek 且不是 @infer（@infer 交给代码通道）
+    # 3. 新 Issue 默认走问答；正文把 @deepseek 改成 @infer 则交给代码通道
+    # 4. 评论必须是 @deepseek 且不是 @infer
     if: >-
       github.event.sender.type != 'Bot' &&
       github.event.issue.pull_request == null &&
-      (github.event_name == 'issues' ||
-       (contains(github.event.comment.body, '@deepseek') &&
+      ((github.event_name == 'issues' &&
+        !contains(github.event.issue.body, '@infer')) ||
+       (github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '@deepseek') &&
         !contains(github.event.comment.body, '@infer')))
     runs-on: ubuntu-latest
     timeout-minutes: 10

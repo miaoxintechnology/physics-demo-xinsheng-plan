@@ -28,3 +28,12 @@ body:
         - 与学段无关（投稿 / 仓库使用）
     validations:
       required: true
+
+  - type: input
+    id: ai_trigger
+    attributes:
+      label: AI 处理方式
+      description: 保留 @deepseek 直接回答问题；改成 @infer 会让 AI 改文件、建分支并开 PR。
+      value: "@deepseek"
+    validations:
+      required: true

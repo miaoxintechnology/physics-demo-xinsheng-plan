@@ -3,6 +3,8 @@ name: AI Code Agent
 # 代码通道：评论里 @infer 触发 infer-action，可以读仓库、改文件、建分支并开 PR。
 # 纯答疑请用 @deepseek（issue-ai-reply.yml），避免 agent 把提问当成任务。
 on:
+  issues:
+    types: [opened]
   issue_comment:
     types: [created]
 
@@ -19,11 +21,15 @@ concurrency:
 
 jobs:
   agent:
-    # 只响应 Issue 里带 @infer 的评论；不响应 Bot，不处理 PR（不检出 PR 代码）
+    # 新 Issue 正文写 @infer，或评论里写 @infer 才触发；
+    # 不响应 Bot，不处理 PR（不检出 PR 代码）
     if: >-
       github.event.sender.type != 'Bot' &&
       github.event.issue.pull_request == null &&
-      contains(github.event.comment.body, '@infer')
+      ((github.event_name == 'issues' &&
+        contains(github.event.issue.body, '@infer')) ||
+       (github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '@infer')))
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
