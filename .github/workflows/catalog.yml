@@ -1,15 +1,10 @@
 name: 自动更新课件索引
 
-# 目的：课件合并进 main 之后，索引由机器人重建并提交，不依赖任何人手动运行脚本。
+# 目的：仓库每次变化（新增/修改/删除课件、改文档、改脚本）都会自动重建索引并提交，
+# 不依赖任何人手动运行脚本。
 on:
   push:
     branches: [main]
-    paths:
-      - "junior_high/**"
-      - "senior_high/**"
-      - "scripts/**"
-      - "package.json"
-      - ".github/workflows/catalog.yml"
   workflow_dispatch:
 
 permissions:

@@ -179,7 +179,7 @@ senior_high/nuclear_physics/half_life_demo(San_Zhang)   # 自己新建主题的�
 
 `index/catalog.json` 和 `index/catalog.md` 由 GitHub Actions 自动生成，**不要手改**：
 
-- 课件合并进 `main` 后，工作流 `catalog.yml` 会重新扫描两个学段目录，把结果直接提交回 `main`（提交信息形如 `chore(catalog): 自动更新索引`），不需要任何人手动运行脚本。
+- **任何一次推送到 `main`**（新增或删除课件、改文档、改脚本都算）都会触发工作流 `catalog.yml`：重新扫描两个学段目录，内容有变化就把结果提交回 `main`（提交信息形如 `chore(catalog): 自动更新索引`），内容没变则什么都不提交。不需要任何人手动运行脚本。
 - 因此 PR 里**不必**附带 `index/` 的改动；就算带了，合并后也会被机器人覆盖成正确结果。
 - 想立刻重建一次，到仓库 Actions 页面选「自动更新课件索引」，点 **Run workflow** 即可。
 
