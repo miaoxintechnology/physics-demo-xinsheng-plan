@@ -112,7 +112,7 @@ physics-demo-xinsheng-plan/
 ├─ junior_high/                     # 初中
 │  ├─ mechanics/                    # 力学
 │  │  ├─ lever_balance/
-│  │  │  └─ lever_balance_demo(Lili_Zhao)/
+│  │  │  └─ lever_balance_demo(Lili_Zhao)/     # 这是一个示例 实际可能不存在
 │  │  │     ├─ lever_balance_demo.html
 │  │  │     ├─ README.md
 │  │  │     ├─ LICENSE
