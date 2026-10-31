@@ -1,0 +1,60 @@
+name: AI Code Agent
+
+# 代码通道：评论里 @infer 触发 infer-action，可以读仓库、改文件、建分支并开 PR。
+# 纯答疑请用 @deepseek（issue-ai-reply.yml），避免 agent 把提问当成任务。
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  # 这条通道真的要写仓库，所以需要 contents: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+# 同一 Issue 串行，避免两次运行同时改分支
+concurrency:
+  group: ai-code-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    # 只响应 Issue 里带 @infer 的评论；不响应 Bot，不处理 PR（不检出 PR 代码）
+    if: >-
+      github.event.sender.type != 'Bot' &&
+      github.event.issue.pull_request == null &&
+      contains(github.event.comment.body, '@infer')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 检出仓库（仅默认分支）
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: 检查 DEEPSEEK_API_KEY
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          if [ -z "${DEEPSEEK_API_KEY}" ]; then
+            echo "::error::仓库尚未配置 DEEPSEEK_API_KEY，无法调用模型。"
+            exit 1
+          fi
+
+      - name: 调用 Infer agent 执行改动
+        uses: inference-gateway/infer-action@v0.23.6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: deepseek/deepseek-flash
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          # 触发短语保持默认的 @infer
+          # 这是「干活」通道：用户明确要求改代码时才应该走到这里，
+          # 所以保留 action 默认的工程化系统提示，只补充一点边界说明。
+          custom-instructions: |
+            用户用 @infer 明确请求你修改仓库内容。请按最小改动原则完成：
+            - 需要改哪个课件目录就只改那个目录，不要顺手重构无关文件；
+            - 改完说明改了什么、为什么改；
+            - 如果用户的要求其实不需要改代码（例如只是提问），不要改任何文件，
+              直接用评论说明「这个问题适合用 @deepseek 提问」，并给出答案要点。

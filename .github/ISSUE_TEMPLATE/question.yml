@@ -28,12 +28,3 @@ body:
         - 与学段无关（投稿 / 仓库使用）
     validations:
       required: true
-
-  - type: input
-    id: ai_trigger
-    attributes:
-      label: AI 触发标记
-      description: 这一行是给自动回复用的，保留 @infer 即可；改成别的内容就不会触发自动回复。
-      value: "@infer"
-    validations:
-      required: true

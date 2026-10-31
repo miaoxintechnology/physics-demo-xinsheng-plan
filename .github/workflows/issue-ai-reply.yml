@@ -1,9 +1,8 @@
 name: AI Reply on Issues & Comments
 
-# 新 Issue（opened）自动回复；后续评论需要 @infer 才回复。
-# 实现方式：直接把问题发给 DeepSeek 接口，把回答作为评论发出。
-# 不走 agent 循环，因此不会出现「无需进一步操作」这类空回答，
-# 也不会去读仓库文件、跑 git/gh、或改动代码。
+# 纯问答通道：新 Issue 自动回答；评论里 @deepseek 追问也走这里。
+# 只调用 DeepSeek 接口发评论，不读仓库、不改代码、不开 PR。
+# 需要 AI 改文件 / 开 PR 时用 @infer，那走 issue-ai-code.yml。
 on:
   issues:
     types: [opened]
@@ -11,12 +10,10 @@ on:
     types: [created]
 
 permissions:
-  # 只发评论，不需要写代码，所以 contents 保持只读
   contents: read
   issues: write
-  pull-requests: write
 
-# 同一 Issue 串行排队，不取消已开始的运行：谁都不会被顶掉，每条提问最终都有回答
+# 同一 Issue 串行，不取消已开始的运行：每条提问最终都会有回答
 concurrency:
   group: ai-reply-${{ github.event.issue.number }}
   cancel-in-progress: false
@@ -24,12 +21,14 @@ concurrency:
 jobs:
   answer:
     # 1. 不响应 Bot，防止循环
-    # 2. 只处理 Issue，不碰 PR（也不检出任何 PR 代码）
-    # 3. 评论必须含 @infer
+    # 2. 只处理 Issue，不碰 PR
+    # 3. 新 Issue 直接答；评论必须是 @deepseek 且不是 @infer（@infer 交给代码通道）
     if: >-
       github.event.sender.type != 'Bot' &&
       github.event.issue.pull_request == null &&
-      (github.event_name != 'issue_comment' || contains(github.event.comment.body, '@infer'))
+      (github.event_name == 'issues' ||
+       (contains(github.event.comment.body, '@deepseek') &&
+        !contains(github.event.comment.body, '@infer')))
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -53,8 +52,9 @@ jobs:
             const comment = context.payload.comment;
             const isComment = Boolean(comment);
 
-            // @infer 只是唤醒词，从正文里去掉，避免模型把它当成内容
-            const clean = (text) => (text ?? "").replace(/@infer/gi, "").trim();
+            // 触发词只是唤醒用，从正文里去掉
+            const clean = (text) =>
+              (text ?? "").replace(/@deepseek/gi, "").replace(/@infer/gi, "").trim();
 
             const userText = isComment
               ? [

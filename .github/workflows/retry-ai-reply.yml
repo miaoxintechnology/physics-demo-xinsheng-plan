@@ -4,7 +4,7 @@ name: 自动重试失败的 AI 回复
 # 自动换一台 runner 把失败的 job 重跑一次。只重试一次，避免死循环。
 on:
   workflow_run:
-    workflows: ["AI Reply on Issues & Comments"]
+    workflows: ["AI Reply on Issues & Comments", "AI Code Agent"]
     types: [completed]
 
 permissions:
