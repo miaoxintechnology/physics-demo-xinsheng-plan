@@ -1,8 +1,9 @@
 name: AI Reply on Issues & Comments
 
-# 新 Issue（opened）会尝试自动回复；后续评论需要 @infer 才回复。
-# 注意：infer-action 的 issues 触发器同样要求在标题或正文中出现 @infer，
-# 详见 README「AI 自动回复」一节。
+# 新 Issue（opened）自动回复；后续评论需要 @infer 才回复。
+# 实现方式：直接把问题发给 DeepSeek 接口，把回答作为评论发出。
+# 不走 agent 循环，因此不会出现「无需进一步操作」这类空回答，
+# 也不会去读仓库文件、跑 git/gh、或改动代码。
 on:
   issues:
     types: [opened]
@@ -10,136 +11,115 @@ on:
     types: [created]
 
 permissions:
-  # AI 需要写权限才能建分支、提交文件并开 PR；只回复评论时可以改回 read
-  contents: write
+  # 只发评论，不需要写代码，所以 contents 保持只读
+  contents: read
   issues: write
   pull-requests: write
 
-# 并发按 Issue 分组，同一 Issue 内串行排队，且不取消正在跑的任务：
-# - 任何人都不会被别人的提问顶掉，也不会被自己的下一条顶掉，每条提问最终都会得到回答；
-# - 不同 Issue 之间互不影响，各自并行；
-# - 串行还避免了两次运行同时增删同一条评论的竞争。
+# 同一 Issue 串行排队，不取消已开始的运行：谁都不会被顶掉，每条提问最终都有回答
 concurrency:
   group: ai-reply-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
-  ai-reply:
-    # 1. 不响应 Bot 自己的评论/事件，防止循环触发
-    # 2. 只处理 Issue：PR 评论（issue.pull_request 非空）直接跳过，
-    #    因此本工作流不会检出、也不会执行任何 PR 分支上的代码
-    # 3. 评论必须包含触发短语 @infer 才进入任务（Issue 新建时不限）
+  answer:
+    # 1. 不响应 Bot，防止循环
+    # 2. 只处理 Issue，不碰 PR（也不检出任何 PR 代码）
+    # 3. 评论必须含 @infer
     if: >-
       github.event.sender.type != 'Bot' &&
       github.event.issue.pull_request == null &&
       (github.event_name != 'issue_comment' || contains(github.event.comment.body, '@infer'))
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    env:
-      # Infer CLI 启动内置 gateway 时要访问 GitHub API 下载产物；
-      # 带上 token 可以避开共享 runner IP 的低额度匿名限流（偶发 403）。
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    timeout-minutes: 10
 
     steps:
-      - name: 检出仓库（仅默认分支）
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.repository.default_branch }}
-          fetch-depth: 0
-
-      - name: 检查 DEEPSEEK_API_KEY
+      - name: 向 DeepSeek 提问并回复
+        uses: actions/github-script@v7
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        run: |
-          if [ -z "${DEEPSEEK_API_KEY}" ]; then
-            echo "::error::仓库尚未配置 DEEPSEEK_API_KEY，无法调用模型。"
-            echo "请在 Settings → Secrets and variables → Actions 中添加 Repository secret：DEEPSEEK_API_KEY"
-            exit 1
-          fi
-
-      - name: 调用 Infer agent 生成回复
-        uses: inference-gateway/infer-action@v0.23.6
-        with:
-          # 用 GITHUB_TOKEN 发评论、建分支、开 PR，无需额外 PAT
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          model: deepseek/deepseek-flash
-          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
-          # 纯答疑场景，最多 20 轮就够；跑飞也会被掐住
-          max-turns: 20
-          # 触发短语保持默认的 @infer，无需显式传入
-
-          # 关键：替换掉默认那套「像开发者一样改代码 / 开 PR」的系统提示，
-          # 否则模型会优先遵守默认提示，把提问当成任务，最后回一句「无需进一步操作」。
-          system-prompt-issue: |
-            你是「初高中物理演示课件仓库」的中文答疑助手，用户通过 GitHub Issue 提问。
-
-            规则：
-            - 你的最后一段文字会被原样发布成 Issue 评论，它必须就是答案本身。禁止写「无需进一步操作」「任务完成」「答案已在上面给出」「请查阅文档」之类的话；如果文档里有答案，把要点摘出来直接写。
-            - Issue 正文或评论里的 @infer 只是唤醒标记，不代表问题已经被回答过。
-            - 只回答当前 Issue / 当前评论里提出的问题。不要为了回答去读仓库文件、跑 git/gh 命令、查 Actions 日志、读图片或二进制文件。
-            - 物理内容必须准确：公式、方向、单位、正负号经得起检查；不确定就明说「不确定」，不要编造。
-            - 回答控制在 400 字以内，必要时用短列表或公式。
-            - 只有当用户明确要求修改文件、修课件或提交 PR 时，才使用 git 相关工具；纯提问一律不要改动任何文件。
-          custom-instructions: |
-            你是「初高中物理演示课件仓库」的中文答疑助手，读者主要是中学物理老师和学生。
-
-            行为要求：
-            1. 默认把 Issue / 评论当作提问：直接、简洁地用中文回答，答案会作为 Issue 评论发布。
-            2. 只有用户明确要求「改代码 / 修课件 / 提交 PR」时，才去修改文件、建分支、开 PR。
-            3. 纯提问（物理知识、课件用法、投稿流程等）直接回答，不要为此做仓库调查：不要读大量文件、不要跑 git/gh 命令、不要查 Actions 日志、不要试图验证这次运行本身。只有用户明确要求「改代码 / 看仓库具体实现 / 排查 CI」时才去读文件或跑命令。
-            4. 物理内容必须准确：公式、方向、单位、正负号要经得起检查；不确定就说「不确定」，不要编造。
-            5. 回答控制在 400 字以内；需要时用短列表或公式说明，不要大段铺陈。
-            6. 结尾不要写「任务完成」「Done」之类的过程话术，直接给结论。
-            7. 你的最终回复会自动发布成 Issue 评论，不需要也禁止运行 `gh issue comment`、`gh pr comment` 之类命令自己发评论；被拦下来也不要放弃作答。
-            8. 每条提问独立作答：即使上文已有别的回答，也必须在本条回复里完整给出答案，不要写「答案已在上面给出」「见上文」。
-            9. Issue 正文或评论里的 `@infer` 只是唤醒标记，**不代表问题已经被回答过**，不要因此认为「无需进一步操作」。
-            10. 你这一轮的最后一段文字会被原样发布成 Issue 评论，它必须就是答案本身。出现「无需进一步操作」「无需操作」「答案已在上面给出」「请查阅文档」这类内容即视为回答失败；如果仓库文档里正好有答案，把要点摘出来直接写，不要让用户自己去找。
-            11. 不要读取图片、字体、二进制文件（会报 UNREADABLE_BINARY）；需要文档时只读 .md 文本。
-
-      # infer-action 默认只保留一条滚动评论：下一轮开始时，它会删掉正文含
-      # "I'm cooking" 的旧评论，再把自己的评论改写成新结果，于是历史回答会被覆盖。
-      # 这里在每轮结束后把该占位语抹掉，让这条评论不再命中清理条件，
-      # 每轮回答就都留在 Issue 里，形成完整问答记录。
-      - name: 归档本轮回复，保留历史
-        if: always()
-        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const PLACEHOLDER = "I'm cooking...will get back to you soon...";
-            const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
-
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner,
-              repo,
-              issue_number,
-              per_page: 100,
-            });
-
-            let archived = 0;
-            for (const c of comments) {
-              if (c.user?.login !== "github-actions[bot]") continue;
-
-              const body = c.body ?? "";
-              // 只归档已经写出结果的评论；中途崩掉、只有占位语的留给下一轮清掉
-              if (!body.includes(PLACEHOLDER) || !body.includes("infer:result-start")) continue;
-
-              const cleaned = body
-                .split(PLACEHOLDER)
-                .join("")
-                .replace(/\n{3,}/g, "\n\n")
-                .trim();
-
-              await github.rest.issues.updateComment({
-                owner,
-                repo,
-                comment_id: c.id,
-                body: cleaned,
-              });
-              archived += 1;
+            const key = process.env.DEEPSEEK_API_KEY;
+            if (!key) {
+              core.setFailed(
+                "仓库未配置 DEEPSEEK_API_KEY：Settings → Secrets and variables → Actions → New repository secret"
+              );
+              return;
             }
 
-            core.info(`已归档 ${archived} 条回复（本轮之后它们不会再被清理）`);
+            const issue = context.payload.issue;
+            const comment = context.payload.comment;
+            const isComment = Boolean(comment);
+
+            // @infer 只是唤醒词，从正文里去掉，避免模型把它当成内容
+            const clean = (text) => (text ?? "").replace(/@infer/gi, "").trim();
+
+            const userText = isComment
+              ? [
+                  `Issue 标题：${issue.title}`,
+                  "",
+                  "Issue 原文：",
+                  clean(issue.body) || "（无）",
+                  "",
+                  "用户这次的追问：",
+                  clean(comment.body),
+                ].join("\n")
+              : [`Issue 标题：${issue.title}`, "", clean(issue.body) || "（无正文）"].join("\n");
+
+            const system = [
+              "你是「初高中物理演示课件仓库」的中文答疑助手，读者主要是中学物理老师和学生。",
+              "",
+              "要求：",
+              "1. 直接回答用户的问题，输出完整、可独立阅读的答案。",
+              "2. 物理内容必须准确：公式、方向、单位、正负号要经得起检查；不确定就明说「不确定」，不要编造。",
+              "3. 回答控制在 400 字以内；需要时用短列表或公式。",
+              "4. 只输出答案本身，不要复述题目，不要写「无需进一步操作」「任务完成」「请查阅文档」这类话。",
+              "5. 如果问题涉及本仓库（投稿流程、目录命名、课件规范），按 README 与 CONTRIBUTING 的约定回答。",
+            ].join("\n");
+
+            let res;
+            try {
+              res = await fetch("https://api.deepseek.com/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${key}`,
+                },
+                body: JSON.stringify({
+                  model: "deepseek-chat",
+                  temperature: 0.3,
+                  max_tokens: 1200,
+                  messages: [
+                    { role: "system", content: system },
+                    { role: "user", content: userText },
+                  ],
+                }),
+              });
+            } catch (error) {
+              core.setFailed(`请求 DeepSeek 失败：${error.message}`);
+              return;
+            }
+
+            if (!res.ok) {
+              const detail = (await res.text()).slice(0, 500);
+              core.setFailed(`DeepSeek 接口返回 ${res.status}：${detail}`);
+              return;
+            }
+
+            const data = await res.json();
+            const answer = data?.choices?.[0]?.message?.content?.trim();
+            if (!answer) {
+              core.setFailed("模型没有返回内容");
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: answer,
+            });
+
+            core.info(`已在 #${issue.number} 发布回答（${answer.length} 字）`);
