@@ -33,6 +33,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    env:
+      # Infer CLI 启动内置 gateway 时要访问 GitHub API 下载产物；
+      # 带上 token 可以避开共享 runner IP 的低额度匿名限流（偶发 403）。
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - name: 检出仓库（仅默认分支）
         uses: actions/checkout@v4
