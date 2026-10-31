@@ -1,0 +1,68 @@
+name: 自动更新课件索引
+
+# 目的：课件合并进 main 之后，索引由机器人重建并提交，不依赖任何人手动运行脚本。
+on:
+  push:
+    branches: [main]
+    paths:
+      - "junior_high/**"
+      - "senior_high/**"
+      - "scripts/**"
+      - "package.json"
+      - ".github/workflows/catalog.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# 同一时间只跑一个，避免两次运行互相覆盖
+concurrency:
+  group: catalog-writer
+  cancel-in-progress: false
+
+jobs:
+  update:
+    # 机器人自己的提交不再触发，避免循环
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: 生成索引
+        run: node scripts/build-catalog.ts
+
+      - name: 有变化就提交回 main
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index/; then
+            echo "索引已是最新，无需提交。"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index/catalog.json index/catalog.md
+          git commit -m "chore(catalog): 自动更新索引 [skip ci]"
+
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "索引已推送到 ${GITHUB_REF_NAME}。"
+              exit 0
+            fi
+            echo "推送失败，第 ${attempt} 次重试前先 rebase……"
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+          done
+
+          echo "多次重试后仍无法推送，请检查分支保护规则。" >&2
+          exit 1

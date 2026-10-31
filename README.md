@@ -175,14 +175,20 @@ senior_high/nuclear_physics/half_life_demo(San_Zhang)   # 自己新建主题的�
 
 > 不需要放预览图，不用 `preview.png`。如果想展示未来改进计划，可以额外放一个 `PLAN.md`。
 
-### 维护者：更新索引
+### 索引是自动更新的
 
-`index/catalog.json` 和 `index/catalog.md` 由脚本扫描生成，**不要手改**。新增、改名或删除课件后跑一次：
+`index/catalog.json` 和 `index/catalog.md` 由 GitHub Actions 自动生成，**不要手改**：
+
+- 课件合并进 `main` 后，工作流 `catalog.yml` 会重新扫描两个学段目录，把结果直接提交回 `main`（提交信息形如 `chore(catalog): 自动更新索引`），不需要任何人手动运行脚本。
+- 因此 PR 里**不必**附带 `index/` 的改动；就算带了，合并后也会被机器人覆盖成正确结果。
+- 想立刻重建一次，到仓库 Actions 页面选「自动更新课件索引」，点 **Run workflow** 即可。
+
+本地预览生成结果时（可选，不参与流程）：
 
 ```bash
-node scripts/build-catalog.ts          # 生成 / 更新索引
-node scripts/build-catalog.ts --check  # 只校验索引是否最新，不写文件（CI 用）
-node scripts/build-catalog.ts --strict # 有任何警告就以非零码退出
+node scripts/build-catalog.ts          # 生成到 index/
+node scripts/build-catalog.ts --check  # 只校验是否最新，不写文件
+node scripts/build-catalog.ts --strict # 有警告即以非零码退出
 ```
 
 脚本从目录名 `<课件名>(<作者>)` 取标题和作者，从课件 `README.md` 的「对应知识点 / 适用年级 / 作者」条目和同目录 `LICENSE` 取其余字段；README 顶部也可以写 YAML 头覆盖这些字段，键名见 `scripts/build-catalog.ts` 文件开头的注释。目录名不合规、缺 README / LICENSE、缺知识点时会给出警告，不会中断生成。
