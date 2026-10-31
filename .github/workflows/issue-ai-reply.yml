@@ -15,10 +15,12 @@ permissions:
   issues: write
   pull-requests: write
 
-# 同一个 Issue 上串行执行，避免两条评论同时触发时互相覆盖
+# 并发按「Issue + 提问人」分组：
+# - 别人在同一个 Issue 里提问，不会顶掉你的那次运行；
+# - 你自己连发两条，新的会替换掉自己还没跑完的那条，不会堆积、不会互相覆盖。
 concurrency:
-  group: ai-reply-${{ github.event.issue.number }}
-  cancel-in-progress: false
+  group: ai-reply-${{ github.event.issue.number }}-${{ github.event.sender.login }}
+  cancel-in-progress: true
 
 jobs:
   ai-reply:
@@ -70,7 +72,7 @@ jobs:
             行为要求：
             1. 默认把 Issue / 评论当作提问：直接、简洁地用中文回答，答案会作为 Issue 评论发布。
             2. 只有用户明确要求「改代码 / 修课件 / 提交 PR」时，才去修改文件、建分支、开 PR。
-            3. 回答前可以读仓库里的 README.md、CONTRIBUTING.md、index/catalog.json 了解语境，但不要为了回答问题而改动它们。
+            3. 纯提问（物理知识、课件用法、投稿流程等）直接回答，不要为此做仓库调查：不要读大量文件、不要跑 git/gh 命令、不要查 Actions 日志、不要试图验证这次运行本身。只有用户明确要求「改代码 / 看仓库具体实现 / 排查 CI」时才去读文件或跑命令。
             4. 物理内容必须准确：公式、方向、单位、正负号要经得起检查；不确定就说「不确定」，不要编造。
             5. 回答控制在 400 字以内；需要时用短列表或公式说明，不要大段铺陈。
             6. 结尾不要写「任务完成」「Done」之类的过程话术，直接给结论。
