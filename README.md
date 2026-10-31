@@ -225,22 +225,29 @@ node scripts/build-catalog.ts --strict # 有警告即以非零码退出
 
 ---
 
-## AI 自动回复
+## AI 助手：两个触发词
 
-Issue 有两条通道，按触发词区分：
+Issue 里有两个 AI 触发词，一个只回答，一个会动手：
 
-| 触发 | 做什么 | 会不会改仓库 |
-| --- | --- | --- |
-| 新建 Issue（模板默认带 `@deepseek`，不用改） | 直接回答问题 | 不会 |
-| 新建 Issue，把模板里的 `@deepseek` 改成 `@infer` | 交给 agent 改文件、建分支、开 PR | 会 |
-| 评论里 `@deepseek 你的问题` | 直接回答问题 | 不会 |
-| 评论里 `@infer 你的要求` | 交给 agent 改文件、建分支、开 PR | 会 |
+| 触发 | 背后是什么 | 能做什么 | 会不会改仓库 |
+| --- | --- | --- | --- |
+| `@deepseek` | 直接调用 DeepSeek 模型接口 | 回答问题；回答前会读本仓库的 README / CONTRIBUTING，按仓库约定答 | 不会 |
+| `@infer` | `infer-action` Agent（会规划、读文件、跑命令） | 改文件、建分支、提交、开 PR | 会 |
 
-- 问答通道 [`issue-ai-reply.yml`](.github/workflows/issue-ai-reply.yml) 只有 `contents: read`，把问题发给 DeepSeek 接口后把答案发成评论；每个问题单独一条，历史全部保留。
-- 代码通道 [`issue-ai-code.yml`](.github/workflows/issue-ai-code.yml) 才会写仓库：改文件、建分支、开 PR，**只在明确写了 `@infer` 时触发**。
-- 两条通道都只处理 Issue，PR 评论不触发，也不会检出或执行任何 PR 分支上的代码；都不响应机器人自己的评论。
+用法：
+
+- **新 Issue**：模板默认填好 `@deepseek`，提交后自动回答，不用改。
+- **评论追问**：写 `@deepseek 你的问题`。
+- **想让 AI 动手改**：把模板里的 `@deepseek` 改成 `@infer`，或在评论里写 `@infer 把 xxx 改成 yyy`。它会按最小改动原则处理，需要时直接开 PR。
+
+细节：
+
+- 问答通道 [`issue-ai-reply.yml`](.github/workflows/issue-ai-reply.yml) 只有 `contents: read`，不碰仓库；生成时会把仓库文档一起作为上下文，所以能回答「本仓库许可用哪个」「目录怎么命名」这类问题。
+- 代码通道 [`issue-ai-code.yml`](.github/workflows/issue-ai-code.yml) 才有写权限，**只在明确写了 `@infer` 时触发**。
+- 两条通道都只处理 Issue，PR 评论不触发，也不检出任何 PR 分支上的代码；都不响应机器人自己的评论。
+- 每个问题/每次结果都会单独留一条评论，历史不会被后来的覆盖。
 - 同一 Issue 内按顺序处理，不会互相顶掉；不同 Issue 并行。
-- 依赖仓库 Secret `DEEPSEEK_API_KEY`（维护者在 Settings → Secrets and variables → Actions 中配置）；没配时工作流会以明确的错误信息失败。
+- 依赖仓库 Secret `DEEPSEEK_API_KEY`（维护者在 Settings → Secrets and variables → Actions 中配置）。
 
 > 只是提问就别用 `@infer`——那条通道会真的动仓库。
 

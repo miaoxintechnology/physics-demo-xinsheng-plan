@@ -64,3 +64,45 @@ jobs:
             - 改完说明改了什么、为什么改；
             - 如果用户的要求其实不需要改代码（例如只是提问），不要改任何文件，
               直接用评论说明「这个问题适合用 @deepseek 提问」，并给出答案要点。
+
+      # infer-action 只保留一条滚动评论：下一轮开始会删掉正文含 "I'm cooking" 的旧评论，
+      # 于是历史结果会被覆盖。这里在每轮结束后抹掉该占位语，让每轮结果都留下来。
+      - name: 归档本轮结果，保留历史
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const PLACEHOLDER = "I'm cooking...will get back to you soon...";
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            let archived = 0;
+            for (const c of comments) {
+              if (c.user?.login !== "github-actions[bot]") continue;
+              const body = c.body ?? "";
+              if (!body.includes(PLACEHOLDER) || !body.includes("infer:result-start")) continue;
+
+              const cleaned = body
+                .split(PLACEHOLDER)
+                .join("")
+                .replace(/\n{3,}/g, "\n\n")
+                .trim();
+
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: c.id,
+                body: cleaned,
+              });
+              archived += 1;
+            }
+
+            core.info(`已归档 ${archived} 条结果`);

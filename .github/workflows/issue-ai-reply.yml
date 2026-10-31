@@ -71,6 +71,30 @@ jobs:
                 ].join("\n")
               : [`Issue 标题：${issue.title}`, "", clean(issue.body) || "（无正文）"].join("\n");
 
+            // 把仓库文档一起喂给模型，避免它凭空编造本仓库的约定
+            const readDoc = async (path) => {
+              try {
+                const r = await github.rest.repos.getContent({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  path,
+                });
+                return Buffer.from(r.data.content, "base64").toString("utf8");
+              } catch {
+                return "";
+              }
+            };
+
+            const readme = (await readDoc("README.md")).slice(0, 20000);
+            const contributing = (await readDoc("CONTRIBUTING.md")).slice(0, 15000);
+            const docs = [
+              "【本仓库 README.md 摘录】",
+              readme || "（读取失败）",
+              "",
+              "【本仓库 CONTRIBUTING.md 摘录】",
+              contributing || "（读取失败）",
+            ].join("\n");
+
             const system = [
               "你是「初高中物理演示课件仓库」的中文答疑助手，读者主要是中学物理老师和学生。",
               "",
@@ -79,7 +103,10 @@ jobs:
               "2. 物理内容必须准确：公式、方向、单位、正负号要经得起检查；不确定就明说「不确定」，不要编造。",
               "3. 回答控制在 400 字以内；需要时用短列表或公式。",
               "4. 只输出答案本身，不要复述题目，不要写「无需进一步操作」「任务完成」「请查阅文档」这类话。",
-              "5. 如果问题涉及本仓库（投稿流程、目录命名、课件规范），按 README 与 CONTRIBUTING 的约定回答。",
+              "5. 涉及本仓库的问题（投稿流程、目录命名、许可、收录标准），以下面的文档为准；文档没写的部分不要编造，直接说「文档里没有写，建议在 Issue 里问维护者」。",
+              "6. 不要推荐与文档冲突的做法（例如文档同时接受 MIT 和 CC BY-SA 4.0 时，不要只说其中一种）。",
+              "",
+              docs,
             ].join("\n");
 
             let res;
