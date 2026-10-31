@@ -1,0 +1,60 @@
+name: AI Reply on Issues & Comments
+
+# 新 Issue（opened）会尝试自动回复；后续评论需要 @infer 才回复。
+# 注意：infer-action 的 issues 触发器同样要求在标题或正文中出现 @infer，
+# 详见 README「AI 自动回复」一节。
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  # AI 需要写权限才能建分支、提交文件并开 PR；只回复评论时可以改回 read
+  contents: write
+  issues: write
+  pull-requests: write
+
+# 同一个 Issue 上串行执行，避免两条评论同时触发时互相覆盖
+concurrency:
+  group: ai-reply-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  ai-reply:
+    # 1. 不响应 Bot 自己的评论/事件，防止循环触发
+    # 2. 只处理 Issue：PR 评论（issue.pull_request 非空）直接跳过，
+    #    因此本工作流不会检出、也不会执行任何 PR 分支上的代码
+    # 3. 评论必须包含触发短语 @infer 才进入任务（Issue 新建时不限）
+    if: >-
+      github.event.sender.type != 'Bot' &&
+      github.event.issue.pull_request == null &&
+      (github.event_name != 'issue_comment' || contains(github.event.comment.body, '@infer'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 检出仓库（仅默认分支）
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: 检查 DEEPSEEK_API_KEY
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          if [ -z "${DEEPSEEK_API_KEY}" ]; then
+            echo "::error::仓库尚未配置 DEEPSEEK_API_KEY，无法调用模型。"
+            echo "请在 Settings → Secrets and variables → Actions 中添加 Repository secret：DEEPSEEK_API_KEY"
+            exit 1
+          fi
+
+      - name: 调用 Infer agent 生成回复
+        uses: inference-gateway/infer-action@v0.23.6
+        with:
+          # 用 GITHUB_TOKEN 发评论、建分支、开 PR，无需额外 PAT
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          model: deepseek/deepseek-flash
+          deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          # 触发短语保持默认的 @infer，无需显式传入
