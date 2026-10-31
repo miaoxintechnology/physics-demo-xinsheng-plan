@@ -61,7 +61,7 @@ jobs:
         with:
           # 用 GITHUB_TOKEN 发评论、建分支、开 PR，无需额外 PAT
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          model: deepseek/invalid-model-retry-test
+          model: deepseek/deepseek-flash
           deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
           # 触发短语保持默认的 @infer，无需显式传入
           custom-instructions: |
