@@ -221,7 +221,7 @@ node scripts/build-catalog.ts --strict # 有警告即以非零码退出
 
 ### 关于审校时间
 
-审校者都是志愿者，平时要上课、备课、改作业，时间比较零散。你的 PR 提交后，**不一定能在 48 小时内得到回复**，等几天甚至一两周是正常的。超过 14 天没有任何回复，可以礼貌地 ping 一次 `@maintainers`。请多一点耐心，不用反复催。
+审校者都是志愿者，平时有自己的事情，时间比较零散。你的 PR 提交后，**不一定能在 48 小时内得到回复**，等几天甚至一两周是正常的。超过 14 天没有任何回复，可以礼貌地 ping 一次 `@maintainers`。请多一点耐心，不用反复催。
 
 ---
 
@@ -245,10 +245,10 @@ node scripts/build-catalog.ts --strict # 有警告即以非零码退出
 
 ## 有问题？
 
-- 不确定分类、命名、许可：开 Issue 问，标签 `question`
+- 不确定分类、命名、许可：开 Issue 问，标签 `question`，如急需AI回复，请在问题前加上 `@infer`
 - 找不到合适的主题：先看看已有主题，确实没有就自己新建一个，PR 里说明一下
 - 想找一件事做：看 `good first issue` 和 `scene-request`
-- 不熟悉 Git / PR：直接开 Issue 说“我有一个课件但不会提交”，维护者会协助你
+- 不熟悉 Git / PR：直接开 Issue 说“我有一个课件但不会提交”，维护者和AI助手会协助你，注意标签请使用 `question`，以便AI正确识别
 - 想看别人怎么提交的：翻一翻已经合并的 PR，照着做一遍就懂了
 - GitHub 打不开：可以参考 [visiting-Github-without-VPN-successfully](https://github.com/miaoxintechnology/visiting-Github-without-VPN-successfully)
 
