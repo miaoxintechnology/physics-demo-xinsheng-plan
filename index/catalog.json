@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "scripts/build-catalog.ts",
+  "generatedAt": "2026-10-31T13:11:39.183Z",
+  "stats": {
+    "total": 0,
+    "byStage": {},
+    "bySubject": {},
+    "missingReadme": 0,
+    "missingLicense": 0,
+    "missingKnowledgePoint": 0,
+    "warnings": 0
+  },
+  "items": []
+}

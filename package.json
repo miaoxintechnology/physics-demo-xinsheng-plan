@@ -1,0 +1,15 @@
+{
+  "name": "physics-demo-xinsheng-plan",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "初高中物理演示课件公共仓库：目录结构与全库索引工具",
+  "license": "MIT",
+  "scripts": {
+    "catalog": "node scripts/build-catalog.ts",
+    "catalog:check": "node scripts/build-catalog.ts --check --strict"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}

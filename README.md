@@ -175,6 +175,18 @@ senior_high/nuclear_physics/half_life_demo(San_Zhang)   # 自己新建主题的�
 
 > 不需要放预览图，不用 `preview.png`。如果想展示未来改进计划，可以额外放一个 `PLAN.md`。
 
+### 维护者：更新索引
+
+`index/catalog.json` 和 `index/catalog.md` 由脚本扫描生成，**不要手改**。新增、改名或删除课件后跑一次：
+
+```bash
+node scripts/build-catalog.ts          # 生成 / 更新索引
+node scripts/build-catalog.ts --check  # 只校验索引是否最新，不写文件（CI 用）
+node scripts/build-catalog.ts --strict # 有任何警告就以非零码退出
+```
+
+脚本从目录名 `<课件名>(<作者>)` 取标题和作者，从课件 `README.md` 的「对应知识点 / 适用年级 / 作者」条目和同目录 `LICENSE` 取其余字段；README 顶部也可以写 YAML 头覆盖这些字段，键名见 `scripts/build-catalog.ts` 文件开头的注释。目录名不合规、缺 README / LICENSE、缺知识点时会给出警告，不会中断生成。
+
 ---
 
 ## 怎么用（老师 / 使用者）
@@ -220,7 +232,7 @@ senior_high/nuclear_physics/half_life_demo(San_Zhang)   # 自己新建主题的�
 
 - [x] 建立初中、高中分类目录结构
 - [x] 编写贡献指南、收录标准、审校清单
-- [ ] 写好 `build-catalog` 脚本，自动生成索引
+- [x] 写好 `build-catalog` 脚本，自动生成索引
 - [ ] 🎯长期目标：覆盖初高中物理主要知识点，形成可持续生长的公共课件库
 
 ---
