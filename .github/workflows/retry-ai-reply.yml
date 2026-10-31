@@ -1,0 +1,38 @@
+name: 自动重试失败的 AI 回复
+
+# 兜底：AI 回复工作流失败时（例如下载 gateway 时撞上共享 runner 的匿名限流 403），
+# 自动换一台 runner 把失败的 job 重跑一次。只重试一次，避免死循环。
+on:
+  workflow_run:
+    workflows: ["AI Reply on Issues & Comments"]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  rerun:
+    # run_attempt 从 1 开始计数：只在第一次失败时重跑，重跑仍失败就停下
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt < 2
+    runs-on: ubuntu-latest
+    steps:
+      - name: 重新运行失败的 job
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const run = context.payload.workflow_run;
+            core.info(`准备重试 run ${run.id}（当前 attempt ${run.run_attempt}，结论 ${run.conclusion}）`);
+            try {
+              await github.rest.actions.reRunWorkflowFailedJobs({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id,
+              });
+              core.info("已提交重跑请求，等待新的 attempt。");
+            } catch (error) {
+              core.setFailed(`重跑失败：${error.message}`);
+            }
