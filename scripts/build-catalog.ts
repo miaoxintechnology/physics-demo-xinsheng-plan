@@ -563,7 +563,7 @@ function renderMarkdown(model: Model, generatedAt: string): string {
 
   lines.push("# 课件目录", "");
   lines.push("> 本文件由 `scripts/build-catalog.ts` 自动生成，**请勿手工编辑**。");
-  lines.push("> 新增或修改课件后，运行 `node scripts/build-catalog.ts` 重新生成，再一并提交。", "");
+  lines.push("> 课件合并进 `main` 后由 GitHub Actions 自动重建，说明见 [README](../README.md)。", "");
   lines.push(
     `最后生成：${stamp} · 共 **${model.items.length}** 个课件` +
       (model.items.length > 0
@@ -668,6 +668,9 @@ const USAGE = `用法：node scripts/build-catalog.ts [选项]
   --out <dir>    索引输出目录（相对仓库根），默认 index
   -h, --help     显示本帮助`;
 
+/** 去掉生成时间戳，只比较索引内容本身。 */
+const stripStamp = (text: string): string => text.replace(/"generatedAt": "[^"]*"/, '"generatedAt": ""');
+
 async function readExistingJson(p: string): Promise<Catalog | undefined> {
   try {
     const raw = await readFile(p, "utf8");
@@ -719,12 +722,31 @@ async function main(): Promise<number> {
     }
     if (!options.quiet) console.log(`索引是最新的（${model.items.length} 个课件）。`);
   } else {
-    const catalog = buildCatalog(model, new Date().toISOString());
+    const previousJsonText = (await pathExists(jsonPath)) ? await readText(jsonPath) : "";
+    const previousMdText = (await pathExists(mdPath)) ? await readText(mdPath) : "";
+    const previous = await readExistingJson(jsonPath);
+
+    // 幂等：内容没有变化就沿用上次的时间戳，避免每次运行都产生「只改时间」的空提交。
+    let generatedAt = new Date().toISOString();
+    if (previous?.generatedAt) {
+      const probe = renderJson(buildCatalog(model, previous.generatedAt));
+      if (stripStamp(probe) === stripStamp(previousJsonText)) generatedAt = previous.generatedAt;
+    }
+
+    const nextJson = renderJson(buildCatalog(model, generatedAt));
+    const nextMd = renderMarkdown(model, generatedAt);
+
     await mkdir(outDir, { recursive: true });
-    await writeFile(jsonPath, renderJson(catalog), "utf8");
-    await writeFile(mdPath, renderMarkdown(model, catalog.generatedAt), "utf8");
+    if (nextJson !== previousJsonText) await writeFile(jsonPath, nextJson, "utf8");
+    if (nextMd !== previousMdText) await writeFile(mdPath, nextMd, "utf8");
+
     if (!options.quiet) {
-      console.log(`已生成 index/catalog.json 与 index/catalog.md（${model.items.length} 个课件）。`);
+      const changed = nextJson !== previousJsonText || nextMd !== previousMdText;
+      console.log(
+        changed
+          ? `已更新 index/catalog.json 与 index/catalog.md（${model.items.length} 个课件）。`
+          : `索引没有变化（${model.items.length} 个课件），未改动文件。`,
+      );
     }
   }
 

@@ -1,7 +1,7 @@
 # 课件目录
 
 > 本文件由 `scripts/build-catalog.ts` 自动生成，**请勿手工编辑**。
-> 新增或修改课件后，运行 `node scripts/build-catalog.ts` 重新生成，再一并提交。
+> 课件合并进 `main` 后由 GitHub Actions 自动重建，说明见 [README](../README.md)。
 
 最后生成：2026-10-31 13:46:37 UTC · 共 **0** 个课件
 
