@@ -1,0 +1,33 @@
+name: 课件有问题
+description: 打不开、画错了、交互失效；提交后 AI 助手会先回复
+title: "[问题] "
+labels: ["bug"]
+body:
+  - type: input
+    id: courseware
+    attributes:
+      label: 哪个课件
+      description: 填课件目录名或链接，例如 junior_high/optics/.../convex_lens_show(San_Zhang)
+      placeholder: junior_high/mechanics/lever_balance/lever_balance_demo(Lili_Zhao)
+    validations:
+      required: true
+
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 现象
+      description: 具体哪里不对？能复现吗？用的什么浏览器？
+      placeholder: |
+        例如：用 Edge 打开后，拖动滑块焦距不变；Chrome 正常。
+        或：图中安培力方向画反了。
+    validations:
+      required: true
+
+  - type: input
+    id: ai_trigger
+    attributes:
+      label: AI 触发标记
+      description: 这一行是给自动回复用的，保留 @infer 即可；改成别的内容就不会触发自动回复。
+      value: "@infer"
+    validations:
+      required: true

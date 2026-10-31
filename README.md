@@ -229,12 +229,13 @@ node scripts/build-catalog.ts --strict # 有警告即以非零码退出
 
 仓库配置了 [`.github/workflows/issue-ai-reply.yml`](.github/workflows/issue-ai-reply.yml)，用 AI 协助回答 Issue：
 
-- 在 Issue 评论里写 `@infer 你的问题`，机器人会回复；说清要改哪里，它还可以建分支、改文件并开 PR。
+- 新建 Issue 时选任意一个模板即可，模板里已经带好触发标记，**不需要手动输入 `@infer`** 就会自动回复。
+- 评论里想再追问，写 `@infer 你的问题`；说清要改哪里，它还可以建分支、改文件并开 PR。
 - **只处理 Issue**：PR 评论不触发，也不会检出或执行任何 PR 分支上的代码。
 - 不响应机器人自己的评论，避免循环触发。
 - 依赖仓库 Secret `DEEPSEEK_API_KEY`（维护者在 Settings → Secrets and variables → Actions 中配置）；没配时工作流会以明确的错误信息失败。
 
-> 目前的 `infer-action` 对「新 Issue」也要求标题或正文里出现 `@infer`，所以新建 Issue 时请把 `@infer` 写进正文才会自动回复。
+> `infer-action` 判断「要不要回复」只看标题/正文里有没有 `@infer`。所以每个 Issue 模板末尾都有一个必填的「AI 触发标记」字段，预填 `@infer`；同时关闭了空白 Issue，保证从模板建的 Issue 都能自动回复。把那个字段改成别的内容，就只会通知维护者、不触发 AI。
 
 ---
 

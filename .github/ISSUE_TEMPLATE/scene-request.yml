@@ -1,0 +1,39 @@
+name: 想要某个动画
+description: 希望仓库收录某个知识点的课件；提交后 AI 助手会先回复
+title: "[需求] "
+labels: ["scene-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        说说你想要什么动画。如果只是想让 AI 帮你写一个，也可以在描述里写清楚参数和交互，
+        它会尝试给出方案，必要时直接改文件开 PR。
+
+  - type: input
+    id: topic
+    attributes:
+      label: 知识点
+      description: 学段 + 主题 + 具体知识点。
+      placeholder: 例如：高中物理 · 电磁学 · 楞次定律
+    validations:
+      required: true
+
+  - type: textarea
+    id: expectation
+    attributes:
+      label: 期望的演示效果
+      description: 想让学生看到什么？可以调哪些参数？有没有必须画对的细节？
+      placeholder: |
+        例如：线圈中磁通量变化时，感应电流方向用箭头标出；
+        能拖动磁铁、改变匝数；要标出「增反减同」的判定。
+    validations:
+      required: true
+
+  - type: input
+    id: ai_trigger
+    attributes:
+      label: AI 触发标记
+      description: 这一行是给自动回复用的，保留 @infer 即可；改成别的内容就不会触发自动回复。
+      value: "@infer"
+    validations:
+      required: true

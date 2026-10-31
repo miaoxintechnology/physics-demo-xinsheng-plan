@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 先看贡献指南
+    url: https://github.com/miaoxintechnology/physics-demo-xinsheng-plan/blob/main/CONTRIBUTING.md
+    about: 投稿流程、目录命名、审校标准都在这里，能省你不少时间
