@@ -12,6 +12,8 @@ on:
 permissions:
   contents: read
   issues: write
+  # PR 的会话评论走 pull-requests 权限，否则会 403 Resource not accessible
+  pull-requests: write
 
 # 同一 Issue 串行，不取消已开始的运行：每条提问最终都会有回答
 concurrency:
