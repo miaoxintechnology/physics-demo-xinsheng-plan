@@ -79,6 +79,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           model: deepseek/deepseek-flash
           deepseek-api-key: ${{ secrets.DEEPSEEK_API_KEY }}
+          # 默认的 v0.131.0 在 runner 上解压失败（tar: Error is not recoverable），固定到 v0.130.0
+          version: v0.130.0
           # 触发短语保持默认的 @infer
           # 这是「干活」通道：用户明确要求改代码时才应该走到这里，
           # 所以保留 action 默认的工程化系统提示，只补充一点边界说明。
