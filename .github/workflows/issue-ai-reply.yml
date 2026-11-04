@@ -1,6 +1,6 @@
 name: AI Reply on Issues & Comments
 
-# 纯问答通道：新 Issue 自动回答；评论里 @deepseek 追问也走这里。
+# 纯问答通道：新 Issue 自动回答；Issue 或 PR 的评论里 @deepseek 追问也走这里。
 # 只调用 DeepSeek 接口发评论，不读仓库、不改代码、不开 PR。
 # 需要 AI 改文件 / 开 PR 时用 @infer，那走 issue-ai-code.yml。
 on:
@@ -21,12 +21,11 @@ concurrency:
 jobs:
   answer:
     # 1. 不响应 Bot，防止循环
-    # 2. 只处理 Issue，不碰 PR
-    # 3. 新 Issue 默认走问答；正文把 @deepseek 改成 @infer 则交给代码通道
+    # 2. Issue 和 PR 的评论都支持（新 Issue 默认走问答）
+    # 3. 新 Issue 正文把 @deepseek 改成 @infer 则交给代码通道
     # 4. 评论必须是 @deepseek 且不是 @infer
     if: >-
       github.event.sender.type != 'Bot' &&
-      github.event.issue.pull_request == null &&
       ((github.event_name == 'issues' &&
         !contains(github.event.issue.body, '@infer')) ||
        (github.event_name == 'issue_comment' &&

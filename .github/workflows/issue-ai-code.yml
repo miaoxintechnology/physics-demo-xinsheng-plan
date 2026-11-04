@@ -1,6 +1,7 @@
 name: AI Code Agent
 
-# 代码通道：评论里 @infer 触发 infer-action，可以读仓库、改文件、建分支并开 PR。
+# 代码通道：Issue / PR 评论里 @infer 触发 infer-action，
+# 可以读仓库、改文件、建分支并开 PR。
 # 纯答疑请用 @deepseek（issue-ai-reply.yml），避免 agent 把提问当成任务。
 on:
   issues:
@@ -21,11 +22,9 @@ concurrency:
 
 jobs:
   agent:
-    # 新 Issue 正文写 @infer，或评论里写 @infer 才触发；
-    # 不响应 Bot，不处理 PR（不检出 PR 代码）
+    # 新 Issue 正文写 @infer，或 Issue / PR 评论里写 @infer 才触发
     if: >-
       github.event.sender.type != 'Bot' &&
-      github.event.issue.pull_request == null &&
       ((github.event_name == 'issues' &&
         contains(github.event.issue.body, '@infer')) ||
        (github.event_name == 'issue_comment' &&
@@ -34,10 +33,35 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: 检出仓库（仅默认分支）
+      - name: 解析检出目标
+        id: target
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.issue?.pull_request;
+            if (!pr) {
+              // Issue：在默认分支上工作
+              core.setOutput("ref", context.payload.repository.default_branch);
+              core.setOutput("isFork", "false");
+              return;
+            }
+            const { data } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.issue.number,
+            });
+            const isFork = Boolean(data.head.repo?.fork);
+            core.setOutput("isFork", String(isFork));
+            // 同仓库 PR 检出它的 head 分支，可以直接改；fork PR 只在默认分支上只读分析
+            core.setOutput(
+              "ref",
+              isFork ? context.payload.repository.default_branch : data.head.ref
+            );
+
+      - name: 检出仓库
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ steps.target.outputs.ref }}
           fetch-depth: 0
 
       - name: 检查 DEEPSEEK_API_KEY
