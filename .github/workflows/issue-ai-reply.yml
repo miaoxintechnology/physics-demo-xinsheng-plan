@@ -60,17 +60,43 @@ jobs:
             const clean = (text) =>
               (text ?? "").replace(/@deepseek/gi, "").replace(/@infer/gi, "").trim();
 
+            // 评论是否发生在 PR 上；是的话把改动文件列表一并带上
+            const isPullRequest = Boolean(issue.pull_request);
+            let prContext = "";
+            if (isPullRequest) {
+              try {
+                const files = await github.paginate(github.rest.pulls.listFiles, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: issue.number,
+                  per_page: 100,
+                });
+                const list = files
+                  .slice(0, 50)
+                  .map((f) => `- ${f.filename}（${f.status}，+${f.additions}/-${f.deletions}）`)
+                  .join("\n");
+                prContext = [
+                  "",
+                  `本 PR 改动的文件（共 ${files.length} 个）：`,
+                  list || "（没有文件改动）",
+                ].join("\n");
+              } catch (error) {
+                prContext = `\n（读取 PR 改动失败：${error.message}）`;
+              }
+            }
+
             const userText = isComment
               ? [
-                  `Issue 标题：${issue.title}`,
+                  `标题：${issue.title}`,
                   "",
-                  "Issue 原文：",
+                  "原文：",
                   clean(issue.body) || "（无）",
+                  prContext,
                   "",
                   "用户这次的追问：",
                   clean(comment.body),
                 ].join("\n")
-              : [`Issue 标题：${issue.title}`, "", clean(issue.body) || "（无正文）"].join("\n");
+              : [`标题：${issue.title}`, "", clean(issue.body) || "（无正文）", prContext].join("\n");
 
             // 把仓库文档一起喂给模型，避免它凭空编造本仓库的约定
             const readDoc = async (path) => {
@@ -106,6 +132,7 @@ jobs:
               "4. 只输出答案本身，不要复述题目，不要写「无需进一步操作」「任务完成」「请查阅文档」这类话。",
               "5. 涉及本仓库的问题（投稿流程、目录命名、许可、收录标准），以下面的文档为准；文档没写的部分不要编造，直接说「文档里没有写，建议在 Issue 里问维护者」。",
               "6. 不要推荐与文档冲突的做法（例如文档同时接受 MIT 和 CC BY-SA 4.0 时，不要只说其中一种）。",
+              "7. 如果这次是 PR 评论：你正在处理的就是 PR 评论，文档里若写着「PR 评论不触发 AI」，那是尚未更新的旧描述，请忽略；回答 PR 相关问题时以给出的改动文件列表为准。",
               "",
               docs,
             ].join("\n");
